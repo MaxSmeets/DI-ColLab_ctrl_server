@@ -6,7 +6,6 @@ connected_clients = {}
 
 
 async def handle_client(websocket, path):
-    connected_clients.update
     print(f"Nieuwe verbinding: {websocket.remote_address}")
     try:
         # Wait for client message
@@ -15,21 +14,20 @@ async def handle_client(websocket, path):
             splitted = message.split(",")
             if splitted[0] == "N":
                 connected_clients.update(
-                    {splitted[1]: [websocket, splitted[2], splitted[3]]}
+                    {splitted[1]: [websocket, splitted[2], splitted[3], 0]}
                 )
                 # Send message back to all clients
                 for key, value in connected_clients.items():
                     for key2, value2 in connected_clients.items():
-                        await value[0].send(f"N,{key2},{value2[1]},{value2[2]}")
+                        await value[0].send(f"N,{key2},{value2[1]},{value2[2]},0")
             elif splitted[0] == "P":
                 connected_clients.update(
-                    {splitted[1]: [websocket, splitted[2], splitted[3]]}
+                    {splitted[1]: [websocket, splitted[2], splitted[3], splitted[4]]}
                 )
                 # Send message back to all clients
                 for key, value in connected_clients.items():
                     for key2, value2 in connected_clients.items():
-                        await value[0].send(f"P,{key2},{value2[1]},{value2[2]}")
-
+                        await value[0].send(f"P,{key2},{value2[1]},{value2[2]},{value2[3]}")
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
