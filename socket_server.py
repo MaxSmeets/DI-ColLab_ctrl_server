@@ -5,41 +5,49 @@ import websockets
 connected_clients = {}
 
 
-async def handle_client(websocket, path):
-    print(f"Nieuwe verbinding: {websocket.remote_address}")
+def update_client(websocket, vals):
+    connected_clients.update(
+        {websocket: [vals["uuid"], vals["pos_x"], vals["pos_y"], vals["speaking"]]}
+    )
+
+
+async def handle_client(websocket):
+    print(f"New connection: {websocket.remote_address}")
     try:
         # Wait for client message
         async for message in websocket:
-            print(f"Ontvangen van {websocket.remote_address}: {message}")
+            print(f"Received from {websocket.remote_address}: {message}")
             splitted = message.split(",")
-            if splitted[0] == "N":
-                connected_clients.update(
-                    {splitted[1]: [websocket, splitted[2], splitted[3], 0]}
-                )
-                # Send message back to all clients
+            action = splitted[0]
+            vals = {
+                "uuid": splitted[1],
+                "pos_x": splitted[2],
+                "pos_y": splitted[3],
+                "speaking": splitted[4]
+            }
+            update_client(websocket, vals)
+            if action == "N":
                 for key, value in connected_clients.items():
-                    for key2, value2 in connected_clients.items():
-                        await value[0].send(f"N,{key2},{value2[1]},{value2[2]},0")
-            elif splitted[0] == "P":
-                connected_clients.update(
-                    {splitted[1]: [websocket, splitted[2], splitted[3], splitted[4]]}
-                )
-                # Send message back to all clients
+                    await websocket.send(f"N,{value[0]},{value[1]},{value[2]},{value[3]}")
+                    await key.send(f"N,{vals["uuid"]},{vals["pos_x"]},{vals["pos_y"]},{vals["speaking"]}")
+            elif action == "P":
                 for key, value in connected_clients.items():
-                    for key2, value2 in connected_clients.items():
-                        await value[0].send(f"P,{key2},{value2[1]},{value2[2]},{value2[3]}")
+                    await key.send(f"P,{vals["uuid"]},{vals["pos_x"]},{vals["pos_y"]},{vals["speaking"]}")
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
-        for key, value in connected_clients.items():
-            if value[0] == websocket:
+        for key, value in dict(connected_clients).items():
+            if key == websocket:
+                disconnected_uuid = value[0]
                 connected_clients.pop(key)
+                for key2, value2 in connected_clients.items():
+                    await key2.send(f"C,{disconnected_uuid},0,0,0")
 
-        print(f"Verbinding gesloten: {websocket.remote_address}")
+        print(f"Connection closed: {websocket.remote_address}")
 
 
 # Start WebSocket-server
-start_server = websockets.serve(handle_client, "192.168.43.164", 6969)
+start_server = websockets.serve(handle_client, "127.0.0.1", 6969)
 
 print("WebSocket-server gestart op ws://192.168.43.164:6969")
 
